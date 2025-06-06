@@ -1,0 +1,79 @@
+
+-- Uses GROUP BY, JOIN function (SUM)
+SELECT 
+    p.category,
+    SUM(od.quantity * od.price) as total_sales,
+    AVG(od.quantity * od.price) as avg_order_value
+FROM products p
+INNER JOIN order_details od ON p.product_id = od.product_id
+GROUP BY p.category
+ORDER BY total_sales DESC;
+
+
+-- Uses JOIN, GROUP BY, ORDER BY, and aggregate function (SUM)
+SELECT 
+    c.customer_name,
+    c.region,
+    SUM(o.total_amount) as total_spent
+FROM customers c
+LEFT JOIN orders o ON c.customer_id = o.customer_id
+GROUP BY c.customer_id, c.customer_name, c.region
+ORDER BY total_spent DESC
+LIMIT 5;
+
+
+-- Uses GROUP BY, aggregate function (SUM), and date formatting
+SELECT 
+    strftime('%Y-%m', o.order_date) as month,
+    SUM(od.quantity * od.price) as monthly_sales
+FROM orders o
+INNER JOIN order_details od ON o.order_id = od.order_id
+GROUP BY strftime('%Y-%m', o.order_date)
+ORDER BY month;
+
+
+-- Uses subquery, JOIN, and WHERE
+SELECT 
+    p.product_name,
+    p.category,
+    (SELECT SUM(od.quantity) 
+     FROM order_details od 
+     WHERE od.product_id = p.product_id) as total_units_sold
+FROM products p
+WHERE (SELECT SUM(od.quantity) 
+       FROM order_details od 
+       WHERE od.product_id = p.product_id) < 10
+ORDER BY total_units_sold ASC;
+
+
+-- Creates a view for orders with total amount > $500
+CREATE VIEW high_value_orders AS
+SELECT 
+    o.order_id,
+    c.customer_name,
+    o.order_date,
+    o.total_amount
+FROM orders o
+INNER JOIN customers c ON o.customer_id = c.customer_id
+WHERE o.total_amount > 500;
+
+SELECT * FROM high_value_orders
+ORDER BY total_amount DESC;
+
+
+-- Create index on order_details(product_id) for faster JOINs
+CREATE INDEX idx_order_details_product_id ON order_details(product_id);
+
+-- Uses subquery, JOIN, GROUP BY, and AVG
+SELECT 
+    c.region,
+    AVG(o.total_amount) as avg_order_value
+FROM customers c
+INNER JOIN orders o ON c.customer_id = o.customer_id
+WHERE o.order_id IN (
+    SELECT order_id 
+    FROM order_details 
+    WHERE quantity > 1
+)
+GROUP BY c.region
+ORDER BY avg_order_value DESC;
